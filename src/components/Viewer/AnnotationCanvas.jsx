@@ -13,6 +13,9 @@ const HISTORY_LIMIT = 50
 const CANVAS_WIDTH = 1600
 const CANVAS_HEIGHT = 1200
 
+// Shrinks the fitted display size so the photo doesn't fill the whole pane edge-to-edge.
+const DISPLAY_SCALE = 0.7
+
 function fitBackgroundImage(img, targetW, targetH) {
   const scale = Math.min(targetW / img.width, targetH / img.height)
   img.set({
@@ -42,6 +45,7 @@ const AnnotationCanvas = forwardRef(function AnnotationCanvas(
   const currentPathRef = useRef(null)
   const rotationRef = useRef(0)
   const flushTimerRef = useRef(null)
+  const lastContainerWidthRef = useRef(null)
 
   const historyRef = useRef([]) // stack of { json, rotation }, oldest first
   const historyTimerRef = useRef(null)
@@ -111,13 +115,12 @@ const AnnotationCanvas = forwardRef(function AnnotationCanvas(
     const effW = rotated ? natH : natW
     const effH = rotated ? natW : natH
 
-    container.style.aspectRatio = `${effW} / ${effH}`
-
-    const rect = container.getBoundingClientRect()
+    // The container's height comes from flex-grow filling the remaining
+    // column space, which is independent of its own width -- so this stays
+    // stable even though we're about to set that width explicitly below.
     const padding = 8
-    const availW = Math.max(rect.width - padding, 50)
-    const availH = Math.max(rect.height - padding, 50)
-    const scale = Math.min(availW / effW, availH / effH)
+    const availH = Math.max(container.clientHeight - padding, 50)
+    const scale = (availH / effH) * DISPLAY_SCALE
 
     const cssW = natW * scale
     const cssH = natH * scale
@@ -126,6 +129,21 @@ const AnnotationCanvas = forwardRef(function AnnotationCanvas(
 
     wrapEl.style.width = `${effW * scale}px`
     wrapEl.style.height = `${effH * scale}px`
+
+    // Hug both the photo box AND the outer .viewer panel to the actually-
+    // displayed image width, so there's no dead space on either side. The
+    // panel needs this explicitly too -- otherwise the browser's shrink-to-fit
+    // sizing for it falls back to the toolbar's un-wrapped max-content width
+    // (flex-wrap's "as if on one line" contribution), which is much wider
+    // than the photo. Skip redundant same-value writes -- rewriting every
+    // resize tick can retrigger the ResizeObserver watching this element.
+    const targetWidth = Math.round(effW * scale) + 2
+    if (lastContainerWidthRef.current !== targetWidth) {
+      lastContainerWidthRef.current = targetWidth
+      container.style.width = `${targetWidth}px`
+      const viewerEl = container.closest('.viewer')
+      if (viewerEl) viewerEl.style.width = `${targetWidth}px`
+    }
 
     const innerEl = canvas.wrapperEl
     if (innerEl) {
@@ -382,9 +400,19 @@ const AnnotationCanvas = forwardRef(function AnnotationCanvas(
   useEffect(() => {
     const container = containerRef.current
     if (!container) return
-    const observer = new ResizeObserver(() => updateDisplaySize())
+    let rafId = null
+    const observer = new ResizeObserver(() => {
+      // Deferring to the next frame avoids feeding back into the same
+      // ResizeObserver pass (which triggers "loop completed" warnings),
+      // since updateDisplaySize mutates this element's own aspect-ratio.
+      cancelAnimationFrame(rafId)
+      rafId = requestAnimationFrame(updateDisplaySize)
+    })
     observer.observe(container)
-    return () => observer.disconnect()
+    return () => {
+      cancelAnimationFrame(rafId)
+      observer.disconnect()
+    }
   }, [])
 
   useImperativeHandle(ref, () => ({

@@ -61,15 +61,15 @@ export default function TopToolbar({ canvasApiRef }) {
 
   return (
     <header className="top-toolbar">
-      <div className="top-toolbar__title">FastImageAnnotator</div>
-      <div className="top-toolbar__actions">
+      <div className="top-toolbar__left">
+        <div className="top-toolbar__title">FastImageAnnotator</div>
         <button className="top-toolbar__save-btn" onClick={handleSaveCurrentClick} disabled={saving}>
           {saving ? '저장 중…' : '💾 선택값만 저장'}
         </button>
-        <button className="top-toolbar__save-btn" onClick={handleSaveAllClick} disabled={saving}>
-          {saving ? '저장 중…' : `💾 모두 저장${editedPaths.length ? ` (${editedPaths.length})` : ''}`}
-        </button>
       </div>
+      <button className="top-toolbar__save-btn top-toolbar__save-btn--primary" onClick={handleSaveAllClick} disabled={saving}>
+        {saving ? '저장 중…' : `💾 모두 저장${editedPaths.length ? ` (${editedPaths.length})` : ''}`}
+      </button>
 
       {pendingScope && (
         <div className="modal-overlay" onClick={() => setPendingScope(null)}>

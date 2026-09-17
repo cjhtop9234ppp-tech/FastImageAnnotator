@@ -2,6 +2,7 @@ import { ipcMain, dialog, protocol, net } from 'electron'
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import { pathToFileURL, fileURLToPath } from 'node:url'
+import { getLastFolder, setLastFolder } from './windowState.js'
 
 const IMAGE_EXTS = new Set(['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp'])
 
@@ -77,9 +78,14 @@ async function listFolder(folderPath) {
 
 export function registerFsHandlers() {
   ipcMain.handle('fs:choose-folder', async () => {
-    const result = await dialog.showOpenDialog({ properties: ['openDirectory'] })
+    const result = await dialog.showOpenDialog({
+      properties: ['openDirectory'],
+      defaultPath: getLastFolder() ?? undefined,
+    })
     if (result.canceled || result.filePaths.length === 0) return null
-    return result.filePaths[0]
+    const chosen = result.filePaths[0]
+    setLastFolder(chosen)
+    return chosen
   })
 
   ipcMain.handle('fs:list-folder', async (_event, folderPath) => {
@@ -93,8 +99,8 @@ export function registerFsHandlers() {
     let targetPath = originalPath
     if (mode === 'copy') {
       const ext = path.extname(originalPath)
-      const base = originalPath.slice(0, -ext.length)
-      targetPath = `${base}_edited${ext}`
+      const baseName = path.basename(originalPath, ext)
+      targetPath = path.join(path.dirname(originalPath), `${baseName}_edited${ext}`)
     }
 
     await fs.writeFile(targetPath, buffer)

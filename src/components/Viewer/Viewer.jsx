@@ -2,12 +2,16 @@ import { useEffect, useState } from 'react'
 import AnnotationCanvas from './AnnotationCanvas'
 import AnnotationToolbar from './AnnotationToolbar'
 import { formatBytes, formatDate } from '../../utils/format'
+import { useToolSettingsStore } from '../../store/toolSettingsStore'
 
 export default function Viewer({ image, canvasApiRef }) {
   const [tool, setTool] = useState('select')
-  const [color, setColor] = useState('#ff2d2d')
-  const [strokeWidth, setStrokeWidth] = useState(3)
-  const [fontSize, setFontSize] = useState(28)
+  const color = useToolSettingsStore((s) => s.color)
+  const setColor = useToolSettingsStore((s) => s.setColor)
+  const strokeWidth = useToolSettingsStore((s) => s.strokeWidth)
+  const setStrokeWidth = useToolSettingsStore((s) => s.setStrokeWidth)
+  const fontSize = useToolSettingsStore((s) => s.fontSize)
+  const setFontSize = useToolSettingsStore((s) => s.setFontSize)
   const [meta, setMeta] = useState(null)
   const [canUndo, setCanUndo] = useState(false)
 

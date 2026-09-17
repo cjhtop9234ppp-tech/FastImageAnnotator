@@ -12,7 +12,8 @@ export default function ThumbnailGrid() {
   const selectImage = useExplorerStore((s) => s.selectImage)
   const thumbSize = useExplorerStore((s) => s.thumbSize)
   const cellWidth = THUMB_SIZES[thumbSize].cellWidth
-  const rowHeight = cellWidth + META_HEIGHT + GAP
+  const cellImgHeight = (cellWidth * 3) / 4 // thumbnails are 4:3, matching the fixed editing canvas
+  const rowHeight = cellImgHeight + META_HEIGHT + GAP
 
   const containerRef = useRef(null)
   const [viewport, setViewport] = useState({ width: 0, height: 0 })
@@ -71,7 +72,6 @@ export default function ThumbnailGrid() {
         style={{
           gridTemplateColumns: `repeat(${columns}, 1fr)`,
           gap: GAP,
-          '--thumb-img-height': `${cellWidth}px`,
         }}
       >
         {visibleImages.map((image) => (

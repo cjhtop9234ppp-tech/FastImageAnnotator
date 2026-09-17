@@ -1,7 +1,7 @@
 {
   "name": "10--fastimageannotator",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.5",
   "description": "FastStone-style image viewer with a simple annotation editor",
   "author": "Kim",
   "type": "module",
