@@ -6,6 +6,7 @@ import { composeEntryToDataUrl } from '../../utils/exportImage'
 export default function TopToolbar({ canvasApiRef }) {
   const entries = useAnnotationStore((s) => s.entries)
   const selectedImagePath = useExplorerStore((s) => s.selectedImagePath)
+  const currentFolder = useExplorerStore((s) => s.currentFolder)
   const [saving, setSaving] = useState(false)
   const [pendingScope, setPendingScope] = useState(null) // 'current' | 'all' | null
 
@@ -59,6 +60,15 @@ export default function TopToolbar({ canvasApiRef }) {
     setPendingScope('all')
   }
 
+  const handleOpenInExplorer = async () => {
+    if (!currentFolder) return
+    try {
+      await window.electronAPI.openInExplorer(currentFolder)
+    } catch (err) {
+      alert('폴더를 여는 중 오류가 발생했습니다: ' + err.message)
+    }
+  }
+
   return (
     <header className="top-toolbar">
       <div className="top-toolbar__left">
@@ -67,9 +77,14 @@ export default function TopToolbar({ canvasApiRef }) {
           {saving ? '저장 중…' : '💾 선택값만 저장'}
         </button>
       </div>
-      <button className="top-toolbar__save-btn top-toolbar__save-btn--primary" onClick={handleSaveAllClick} disabled={saving}>
-        {saving ? '저장 중…' : `💾 모두 저장${editedPaths.length ? ` (${editedPaths.length})` : ''}`}
-      </button>
+      <div className="top-toolbar__right">
+        <button className="top-toolbar__save-btn" onClick={handleOpenInExplorer} disabled={!currentFolder}>
+          📂 결과 폴더 열기
+        </button>
+        <button className="top-toolbar__save-btn top-toolbar__save-btn--primary" onClick={handleSaveAllClick} disabled={saving}>
+          {saving ? '저장 중…' : `💾 모두 저장${editedPaths.length ? ` (${editedPaths.length})` : ''}`}
+        </button>
+      </div>
 
       {pendingScope && (
         <div className="modal-overlay" onClick={() => setPendingScope(null)}>

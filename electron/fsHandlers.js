@@ -1,4 +1,4 @@
-import { ipcMain, dialog, protocol, net } from 'electron'
+import { ipcMain, dialog, protocol, net, shell } from 'electron'
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import { pathToFileURL, fileURLToPath } from 'node:url'
@@ -105,5 +105,10 @@ export function registerFsHandlers() {
 
     await fs.writeFile(targetPath, buffer)
     return { path: targetPath }
+  })
+
+  ipcMain.handle('fs:open-in-explorer', async (_event, folderPath) => {
+    const error = await shell.openPath(folderPath)
+    if (error) throw new Error(error)
   })
 }

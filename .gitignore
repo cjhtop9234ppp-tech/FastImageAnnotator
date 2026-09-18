@@ -14,6 +14,9 @@ dist-electron
 release
 *.local
 
+# Personal dev notes (not for the public repo)
+FastImageAnnotator_SKILL_역분석_통합노트.md
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
