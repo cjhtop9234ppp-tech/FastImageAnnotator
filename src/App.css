@@ -133,35 +133,16 @@
 
 .folder-tree__open-btn {
   width: 100%;
-  /* Same footprint as the "가장 큰 아이콘" thumbnail tile (440x330, 4:3). */
-  max-width: 440px;
-  aspect-ratio: 4 / 3;
-  max-height: 330px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
+  padding: 7px;
   background: #fff;
   color: #1a1a1a;
-  border: 1px dashed #b8b6b0;
-  border-radius: 6px;
-  margin: 0 auto 8px;
-}
-
-.folder-tree__open-btn__icon {
-  font-size: 64px;
-  line-height: 1;
-}
-
-.folder-tree__open-btn__label {
-  font-size: 15px;
-  font-weight: 600;
+  border: 1px solid #b8b6b0;
+  border-radius: 4px;
+  margin-bottom: 8px;
 }
 
 .folder-tree__open-btn:hover {
   background: #e8f0fe;
-  border-color: #8fb8f5;
 }
 
 .folder-tree__current {

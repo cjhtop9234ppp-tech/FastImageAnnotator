@@ -21,8 +21,7 @@ export default function FolderTree() {
   return (
     <div className="folder-tree">
       <button className="folder-tree__open-btn" onClick={handleChooseFolder}>
-        <span className="folder-tree__open-btn__icon">📁</span>
-        <span className="folder-tree__open-btn__label">폴더 열기</span>
+        📁 폴더 열기
       </button>
 
       {currentFolder && (
