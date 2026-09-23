@@ -3,6 +3,8 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.jsx'
 
+document.title = `FastImageAnnotator v${__APP_VERSION__}`
+
 if (import.meta.env.DEV) {
   // Debug-only hooks for manual testing in a plain browser tab (no Electron IPC).
   Promise.all([

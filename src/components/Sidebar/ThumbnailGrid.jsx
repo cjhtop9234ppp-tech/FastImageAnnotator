@@ -70,7 +70,14 @@ export default function ThumbnailGrid() {
       <div
         className="thumb-grid__inner"
         style={{
-          gridTemplateColumns: `repeat(${columns}, 1fr)`,
+          // Fixed px tracks (not 1fr) so a column is never stretched wider
+          // than cellWidth when it doesn't evenly divide the container --
+          // otherwise the aspect-ratio image box renders taller than the
+          // rowHeight this component assumes, and the resulting mismatch
+          // between real and estimated content height makes the scrollable
+          // area's height fluctuate while scrolling (visible as the scroll
+          // position jumping/bouncing instead of progressing smoothly).
+          gridTemplateColumns: `repeat(${columns}, ${cellWidth}px)`,
           gap: GAP,
         }}
       >

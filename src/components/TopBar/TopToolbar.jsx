@@ -72,7 +72,7 @@ export default function TopToolbar({ canvasApiRef }) {
   return (
     <header className="top-toolbar">
       <div className="top-toolbar__left">
-        <div className="top-toolbar__title">FastImageAnnotator</div>
+        <div className="top-toolbar__title">FastImageAnnotator v{__APP_VERSION__}</div>
         <button className="top-toolbar__save-btn" onClick={handleSaveCurrentClick} disabled={saving}>
           {saving ? '저장 중…' : '💾 선택값만 저장'}
         </button>

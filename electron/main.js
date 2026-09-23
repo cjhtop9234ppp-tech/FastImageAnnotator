@@ -9,6 +9,11 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 const VITE_DEV_SERVER_URL = process.env.VITE_DEV_SERVER_URL
 
+// 버전은 package.json 한 곳에서만 가져온다 (Kim's programe 공통 규칙: 창 제목의
+// 버전과 설치파일 버전이 항상 같은 값이어야 함).
+const { version: APP_VERSION } = JSON.parse(fs.readFileSync(path.join(__dirname, '../package.json'), 'utf-8'))
+const WINDOW_TITLE = `FastImageAnnotator v${APP_VERSION}`
+
 registerMediaProtocol()
 
 // 다른 프로그램(예: PhotoDedup)이 "FastImageAnnotator.exe <폴더경로>" 형태로 실행했을 때
@@ -34,6 +39,7 @@ function createWindow() {
 
   const win = new BrowserWindow({
     ...bounds,
+    title: WINDOW_TITLE,
     minWidth: 800,
     minHeight: 600,
     show: false,
