@@ -370,11 +370,16 @@
      this box becomes scrollable/pannable instead of just clipping. */
   overflow: auto;
   display: flex;
-  align-items: center;
-  justify-content: center;
 }
 
 .annotation-canvas__wrap {
+  /* margin:auto (not the parent's align/justify-content:center) centers the
+     photo when it's smaller than the container, while still leaving BOTH
+     sides of the overflow reachable when zoomed in. align/justify-center on
+     a scrollable flex parent clips whichever side overflows "before" the
+     center, since the browser can't scroll to a negative offset -- that was
+     cutting off the top/left of a heavily zoomed photo while panning. */
+  margin: auto;
   flex: 0 0 auto;
 }
 
