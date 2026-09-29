@@ -58,6 +58,7 @@ const AnnotationCanvas = forwardRef(function AnnotationCanvas(
   const isRestoringRef = useRef(false)
 
   const drawStateRef = useRef({ isDrawing: false, startPoint: null, activeShape: null })
+  const panStateRef = useRef({ isPanning: false, startX: 0, startY: 0, startScrollLeft: 0, startScrollTop: 0 })
 
   const [rotation, setRotation] = useState(0)
   const [ready, setReady] = useState(false)
@@ -183,6 +184,23 @@ const AnnotationCanvas = forwardRef(function AnnotationCanvas(
     setReady(true)
 
     const handleMouseDown = (opt) => {
+      const evt = opt.e
+      // Right-drag, or Ctrl+left-drag, pans the zoomed photo around instead
+      // of drawing/selecting -- works no matter which tool is active.
+      if (evt.button === 2 || (evt.button === 0 && evt.ctrlKey)) {
+        const container = containerRef.current
+        if (!container) return
+        evt.preventDefault()
+        const pan = panStateRef.current
+        pan.isPanning = true
+        pan.startX = evt.clientX
+        pan.startY = evt.clientY
+        pan.startScrollLeft = container.scrollLeft
+        pan.startScrollTop = container.scrollTop
+        container.style.cursor = 'grabbing'
+        return
+      }
+
       const currentTool = toolRef.current
       if (currentTool === 'select') return
       const pointer = canvas.getScenePoint(opt.e)
@@ -242,6 +260,17 @@ const AnnotationCanvas = forwardRef(function AnnotationCanvas(
     }
 
     const handleMouseMove = (opt) => {
+      const pan = panStateRef.current
+      if (pan.isPanning) {
+        const container = containerRef.current
+        if (container) {
+          const evt = opt.e
+          container.scrollLeft = pan.startScrollLeft - (evt.clientX - pan.startX)
+          container.scrollTop = pan.startScrollTop - (evt.clientY - pan.startY)
+        }
+        return
+      }
+
       const state = drawStateRef.current
       if (!state.isDrawing || !state.activeShape) return
       const pointer = canvas.getScenePoint(opt.e)
@@ -281,6 +310,14 @@ const AnnotationCanvas = forwardRef(function AnnotationCanvas(
     }
 
     const handleMouseUp = () => {
+      const pan = panStateRef.current
+      if (pan.isPanning) {
+        pan.isPanning = false
+        const container = containerRef.current
+        if (container) container.style.cursor = ''
+        return
+      }
+
       const state = drawStateRef.current
       if (!state.isDrawing) return
       state.isDrawing = false
