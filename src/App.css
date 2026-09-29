@@ -366,14 +366,16 @@
   max-width: 100%;
   align-self: center;
   background-color: #111;
-  overflow: hidden;
+  /* auto (not hidden) so a Ctrl+scroll zoom that grows the canvas beyond
+     this box becomes scrollable/pannable instead of just clipping. */
+  overflow: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .annotation-canvas__wrap {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
+  flex: 0 0 auto;
 }
 
 .annotation-canvas__error {
@@ -397,6 +399,11 @@
   color: #b7b7b7;
   font-size: 11px;
   border-top: 1px solid #000;
+}
+
+.viewer-info-bar__zoom {
+  margin-left: auto;
+  white-space: nowrap;
 }
 
 .viewer-info-bar__name {

@@ -14,6 +14,7 @@ export default function Viewer({ image, canvasApiRef }) {
   const setFontSize = useToolSettingsStore((s) => s.setFontSize)
   const [meta, setMeta] = useState(null)
   const [canUndo, setCanUndo] = useState(false)
+  const [zoomPercent, setZoomPercent] = useState(100)
 
   useEffect(() => {
     setMeta(null)
@@ -45,12 +46,16 @@ export default function Viewer({ image, canvasApiRef }) {
         fontSize={fontSize}
         onMeta={setMeta}
         onCanUndoChange={setCanUndo}
+        onZoomChange={setZoomPercent}
       />
       <div className="viewer-info-bar">
         <span className="viewer-info-bar__name">{image.name}</span>
         {meta && <span>{meta.width}x{meta.height}</span>}
         <span>{formatBytes(image.size)}</span>
         <span>{formatDate(image.mtimeMs)}</span>
+        <span className="viewer-info-bar__zoom" title="Ctrl+마우스 스크롤로 확대/축소, Ctrl+0으로 초기화">
+          🔍 {zoomPercent}%
+        </span>
       </div>
       <AnnotationToolbar
         tool={tool}

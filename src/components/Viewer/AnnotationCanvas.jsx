@@ -16,6 +16,11 @@ const CANVAS_HEIGHT = 1200
 // Shrinks the fitted display size so the photo doesn't fill the whole pane edge-to-edge.
 const DISPLAY_SCALE = 0.7
 
+// Ctrl+scroll zoom range and per-tick step.
+const ZOOM_MIN = 0.5
+const ZOOM_MAX = 5
+const ZOOM_STEP = 1.1
+
 function fitBackgroundImage(img, targetW, targetH) {
   const scale = Math.min(targetW / img.width, targetH / img.height)
   img.set({
@@ -29,7 +34,7 @@ function fitBackgroundImage(img, targetW, targetH) {
 }
 
 const AnnotationCanvas = forwardRef(function AnnotationCanvas(
-  { image, tool, color, strokeWidth, fontSize, onMeta, onCanUndoChange },
+  { image, tool, color, strokeWidth, fontSize, onMeta, onCanUndoChange, onZoomChange },
   ref,
 ) {
   const containerRef = useRef(null)
@@ -44,6 +49,7 @@ const AnnotationCanvas = forwardRef(function AnnotationCanvas(
 
   const currentPathRef = useRef(null)
   const rotationRef = useRef(0)
+  const zoomRef = useRef(1)
   const flushTimerRef = useRef(null)
   const lastContainerWidthRef = useRef(null)
 
@@ -120,24 +126,31 @@ const AnnotationCanvas = forwardRef(function AnnotationCanvas(
     // stable even though we're about to set that width explicitly below.
     const padding = 8
     const availH = Math.max(container.clientHeight - padding, 50)
-    const scale = (availH / effH) * DISPLAY_SCALE
+    // baseScale drives the panel/container size and stays constant across
+    // zoom levels, so the surrounding layout (and sidebar width) doesn't
+    // jump around while the user zooms. displayScale is what the canvas is
+    // actually rendered at; when it exceeds the container, the container's
+    // own overflow:auto makes the extra area scrollable/pannable.
+    const baseScale = (availH / effH) * DISPLAY_SCALE
+    const displayScale = baseScale * zoomRef.current
 
-    const cssW = natW * scale
-    const cssH = natH * scale
+    const cssW = natW * displayScale
+    const cssH = natH * displayScale
 
     canvas.setDimensions({ width: cssW, height: cssH }, { cssOnly: true })
 
-    wrapEl.style.width = `${effW * scale}px`
-    wrapEl.style.height = `${effH * scale}px`
+    wrapEl.style.width = `${effW * displayScale}px`
+    wrapEl.style.height = `${effH * displayScale}px`
 
-    // Hug both the photo box AND the outer .viewer panel to the actually-
-    // displayed image width, so there's no dead space on either side. The
+    // Hug both the photo box AND the outer .viewer panel to the base
+    // (unzoomed) display width, so there's no dead space on either side at
+    // zoom 100%, and zooming in doesn't shove the sidebar/panel around. The
     // panel needs this explicitly too -- otherwise the browser's shrink-to-fit
     // sizing for it falls back to the toolbar's un-wrapped max-content width
     // (flex-wrap's "as if on one line" contribution), which is much wider
     // than the photo. Skip redundant same-value writes -- rewriting every
     // resize tick can retrigger the ResizeObserver watching this element.
-    const targetWidth = Math.round(effW * scale) + 2
+    const targetWidth = Math.round(effW * baseScale) + 2
     if (lastContainerWidthRef.current !== targetWidth) {
       lastContainerWidthRef.current = targetWidth
       container.style.width = `${targetWidth}px`
@@ -147,12 +160,17 @@ const AnnotationCanvas = forwardRef(function AnnotationCanvas(
 
     const innerEl = canvas.wrapperEl
     if (innerEl) {
-      innerEl.style.position = 'absolute'
-      innerEl.style.left = '50%'
-      innerEl.style.top = '50%'
-      innerEl.style.transform = `translate(-50%, -50%) rotate(${rotationRef.current}deg)`
+      innerEl.style.transform = `rotate(${rotationRef.current}deg)`
       innerEl.style.transformOrigin = 'center center'
     }
+  }
+
+  const setZoom = (next) => {
+    const clamped = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, next))
+    if (clamped === zoomRef.current) return
+    zoomRef.current = clamped
+    updateDisplaySize()
+    onZoomChange?.(Math.round(clamped * 100))
   }
 
   // Create the fabric canvas once.
@@ -279,6 +297,11 @@ const AnnotationCanvas = forwardRef(function AnnotationCanvas(
     const handleChange = () => scheduleFlush()
 
     const handleKeyDown = (e) => {
+      if (e.ctrlKey && e.key === '0') {
+        e.preventDefault()
+        setZoom(1)
+        return
+      }
       if (e.key !== 'Delete') return
       const activeTag = document.activeElement?.tagName
       if (activeTag === 'INPUT' || activeTag === 'TEXTAREA' || activeTag === 'SELECT') return
@@ -292,6 +315,16 @@ const AnnotationCanvas = forwardRef(function AnnotationCanvas(
       pushHistorySnapshot()
     }
 
+    const handleWheel = (e) => {
+      if (!e.ctrlKey) return
+      // Must preventDefault on the native (non-passive) listener -- Chromium
+      // otherwise treats Ctrl+wheel as its own page-zoom gesture and our
+      // handler never gets a say.
+      e.preventDefault()
+      const direction = e.deltaY < 0 ? ZOOM_STEP : 1 / ZOOM_STEP
+      setZoom(zoomRef.current * direction)
+    }
+
     canvas.on('mouse:down', handleMouseDown)
     canvas.on('mouse:move', handleMouseMove)
     canvas.on('mouse:up', handleMouseUp)
@@ -300,8 +333,10 @@ const AnnotationCanvas = forwardRef(function AnnotationCanvas(
     canvas.on('object:removed', handleChange)
     canvas.on('text:changed', handleChange)
     window.addEventListener('keydown', handleKeyDown)
+    containerRef.current?.addEventListener('wheel', handleWheel, { passive: false })
 
     return () => {
+      containerRef.current?.removeEventListener('wheel', handleWheel)
       clearTimeout(flushTimerRef.current)
       clearTimeout(historyTimerRef.current)
       window.removeEventListener('keydown', handleKeyDown)
@@ -359,6 +394,8 @@ const AnnotationCanvas = forwardRef(function AnnotationCanvas(
       setLoadError(null)
       historyRef.current = []
       onCanUndoChange?.(false)
+      zoomRef.current = 1
+      onZoomChange?.(100)
 
       try {
         canvas.setDimensions({ width: CANVAS_WIDTH, height: CANVAS_HEIGHT })
@@ -466,6 +503,8 @@ const AnnotationCanvas = forwardRef(function AnnotationCanvas(
 
       rotationRef.current = 0
       setRotation(0)
+      zoomRef.current = 1
+      onZoomChange?.(100)
       updateDisplaySize()
 
       historyRef.current = []
