@@ -311,12 +311,12 @@
   position: absolute;
   top: 3px;
   right: 3px;
-  background: #ff9d2d;
-  color: #1e1e22;
-  font-size: 11px;
+  background: #000000;
+  color: #ffd500;
+  font-size: 22px;
   line-height: 1;
-  padding: 3px 4px;
-  border-radius: 4px;
+  padding: 6px 8px;
+  border-radius: 8px;
   font-weight: 700;
 }
 

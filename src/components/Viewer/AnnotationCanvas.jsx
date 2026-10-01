@@ -79,6 +79,22 @@ const AnnotationCanvas = forwardRef(function AnnotationCanvas(
     fontSizeRef.current = fontSize
   }, [fontSize])
 
+  // fabric's own cleanup for an actively-edited text box's hidden <textarea>
+  // relies on canvas.clear() -> discardActiveObject() -> the object's
+  // onDeselect() calling exitEditing() -- but fabric's TextEditingManager
+  // (which also gets cleared at the same time) just drops its own
+  // reference instead of forcing that chain. If a save happens while a text
+  // box is still mid-edit (never clicked away from), that hidden textarea
+  // can be left attached to the document, focused, after the object itself
+  // is gone -- and after a few such saves pile up, keystrokes stop reaching
+  // the new text box's own (real) hidden textarea. Exiting editing
+  // ourselves, right before every canvas.clear(), doesn't depend on that
+  // internal chain at all.
+  const exitActiveTextEditing = (canvas) => {
+    const active = canvas.getActiveObject()
+    if (active?.isEditing) active.exitEditing()
+  }
+
   const flushToStore = () => {
     const canvas = fabricRef.current
     const path = currentPathRef.current
@@ -474,6 +490,7 @@ const AnnotationCanvas = forwardRef(function AnnotationCanvas(
       // moment instead.
       clearTimeout(flushTimerRef.current)
       clearTimeout(historyTimerRef.current)
+      exitActiveTextEditing(canvas)
       canvas.clear()
       currentPathRef.current = image.path
       setLoadError(null)
@@ -560,6 +577,7 @@ const AnnotationCanvas = forwardRef(function AnnotationCanvas(
         historyRef.current.pop()
         const prev = historyRef.current[historyRef.current.length - 1]
 
+        exitActiveTextEditing(canvas)
         canvas.clear()
         canvas.setDimensions({ width: CANVAS_WIDTH, height: CANVAS_HEIGHT })
         await canvas.loadFromJSON(prev.json)
@@ -587,6 +605,7 @@ const AnnotationCanvas = forwardRef(function AnnotationCanvas(
 
         clearTimeout(flushTimerRef.current)
         clearTimeout(historyTimerRef.current)
+        exitActiveTextEditing(canvas)
         canvas.clear()
         canvas.setDimensions({ width: CANVAS_WIDTH, height: CANVAS_HEIGHT })
 
