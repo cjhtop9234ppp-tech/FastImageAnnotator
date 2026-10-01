@@ -37,6 +37,18 @@ export default function TopToolbar({ canvasApiRef }) {
         if (mode === 'overwrite') {
           useExplorerStore.getState().refreshImageUrl(path)
         }
+        // 저장이 끝난 사진은 편집 내용을 비워서, 다음에 "모두 저장"을 눌렀을 때
+        // 이미 저장된 사진이 계속 또 저장되지 않게 한다 -- 이미 디스크에(또는
+        // 복사본으로) 반영됐으니 더 이상 "편집 중"으로 남아있을 이유가 없다.
+        if (path === selectedImagePath) {
+          // 지금 우측 화면에 떠 있는 사진이면, 방금 저장된(덮어쓰기면 새로 바뀐
+          // 캐시버스터 URL, 복사본 저장이면 안 건드린 원본 URL) 내용으로 화면도
+          // 함께 초기화한다 -- canvasApiRef.reset()이 편집 내용 리셋까지 처리한다.
+          const freshUrl = useExplorerStore.getState().images.find((img) => img.path === path)?.url
+          await canvasApiRef.current?.reset(freshUrl)
+        } else {
+          useAnnotationStore.getState().resetAnnotation(path)
+        }
         successCount += 1
       }
 

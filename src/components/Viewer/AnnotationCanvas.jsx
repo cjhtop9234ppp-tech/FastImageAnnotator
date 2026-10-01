@@ -168,6 +168,23 @@ const AnnotationCanvas = forwardRef(function AnnotationCanvas(
     }
   }
 
+  // Runs `taskFn` after whatever previous task is currently queued, so only
+  // one task is ever touching the shared fabric canvas at a time (switching
+  // photos, undo, and reset-after-save all mutate it). A task that goes
+  // stale (a newer one was queued behind it before its turn came) skips
+  // itself entirely instead of touching the canvas -- see the image-load
+  // effect below for why reacting to staleness after the fact isn't safe.
+  const queueCanvasTask = (taskFn) => {
+    const myTaskId = ++loadIdRef.current
+    const run = async () => {
+      if (loadIdRef.current !== myTaskId) return
+      await taskFn()
+    }
+    const chained = loadQueueRef.current.then(run, run)
+    loadQueueRef.current = chained
+    return chained
+  }
+
   const setZoom = (next) => {
     const clamped = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, next))
     if (clamped === zoomRef.current) return
@@ -444,11 +461,7 @@ const AnnotationCanvas = forwardRef(function AnnotationCanvas(
     // the shared canvas at a time, and a load that goes stale while still
     // waiting in line skips itself entirely rather than touching the canvas
     // at all, leaving it to whichever load is actually current.
-    const myLoadId = ++loadIdRef.current
-    const isStale = () => loadIdRef.current !== myLoadId
-
     async function load() {
-      if (isStale()) return
       const canvas = fabricRef.current
       if (!canvas) return
 
@@ -496,11 +509,7 @@ const AnnotationCanvas = forwardRef(function AnnotationCanvas(
       }
     }
 
-    // Chain onto the queue regardless of staleness-at-schedule-time -- the
-    // staleness check that actually matters happens once this load reaches
-    // the front of the queue (inside load(), above), right before it would
-    // touch the canvas.
-    loadQueueRef.current = loadQueueRef.current.then(load, load)
+    queueCanvasTask(load)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, image?.path])
 
@@ -539,49 +548,83 @@ const AnnotationCanvas = forwardRef(function AnnotationCanvas(
       pushHistorySnapshot()
     },
     async undo() {
-      if (historyRef.current.length <= 1) return
-      const canvas = fabricRef.current
-      if (!canvas) return
+      // Queued like image switches/reset -- it mutates the same shared
+      // canvas, and without this an in-flight image switch could otherwise
+      // interleave with it.
+      return queueCanvasTask(async () => {
+        if (historyRef.current.length <= 1) return
+        const canvas = fabricRef.current
+        if (!canvas) return
 
-      isRestoringRef.current = true
-      historyRef.current.pop()
-      const prev = historyRef.current[historyRef.current.length - 1]
+        isRestoringRef.current = true
+        historyRef.current.pop()
+        const prev = historyRef.current[historyRef.current.length - 1]
 
-      canvas.clear()
-      canvas.setDimensions({ width: CANVAS_WIDTH, height: CANVAS_HEIGHT })
-      await canvas.loadFromJSON(prev.json)
-      canvas.renderAll()
+        canvas.clear()
+        canvas.setDimensions({ width: CANVAS_WIDTH, height: CANVAS_HEIGHT })
+        await canvas.loadFromJSON(prev.json)
+        canvas.renderAll()
 
-      rotationRef.current = prev.rotation
-      setRotation(prev.rotation)
-      updateDisplaySize()
-      isRestoringRef.current = false
+        rotationRef.current = prev.rotation
+        setRotation(prev.rotation)
+        updateDisplaySize()
+        isRestoringRef.current = false
 
-      onCanUndoChange?.(historyRef.current.length > 1)
-      scheduleFlush()
+        onCanUndoChange?.(historyRef.current.length > 1)
+        scheduleFlush()
+      })
     },
-    async reset() {
-      const canvas = fabricRef.current
-      const path = currentPathRef.current
-      if (!canvas || !path) return
+    // url defaults to the current photo's own (unedited) file, used by the
+    // "이 사진 초기화" button; the save flow passes an explicit url instead
+    // (the cache-busted overwritten file, or the untouched original for a
+    // copy-save) so it reloads the correct bytes regardless of what `image`
+    // currently points to.
+    async reset(url = image?.url) {
+      return queueCanvasTask(async () => {
+        const canvas = fabricRef.current
+        const path = currentPathRef.current
+        if (!canvas || !path || !url) return
 
-      canvas.clear()
-      canvas.setDimensions({ width: CANVAS_WIDTH, height: CANVAS_HEIGHT })
-      const img = await FabricImage.fromURL(image.url, { crossOrigin: 'anonymous' })
-      fitBackgroundImage(img, CANVAS_WIDTH, CANVAS_HEIGHT)
-      canvas.backgroundImage = img
-      canvas.renderAll()
+        clearTimeout(flushTimerRef.current)
+        clearTimeout(historyTimerRef.current)
+        canvas.clear()
+        canvas.setDimensions({ width: CANVAS_WIDTH, height: CANVAS_HEIGHT })
 
-      rotationRef.current = 0
-      setRotation(0)
-      zoomRef.current = 1
-      onZoomChange?.(100)
-      updateDisplaySize()
+        try {
+          const img = await FabricImage.fromURL(url, { crossOrigin: 'anonymous' })
+          fitBackgroundImage(img, CANVAS_WIDTH, CANVAS_HEIGHT)
+          canvas.backgroundImage = img
+          setLoadError(null)
+        } catch (err) {
+          // Still finish resetting below even if the background couldn't be
+          // fetched -- the shapes are already cleared, so leaving history/
+          // the stored annotation stale would be worse than showing the
+          // "couldn't load" placeholder for just the background.
+          setLoadError(err.message || '이미지를 불러올 수 없습니다')
+        }
+        canvas.renderAll()
 
-      historyRef.current = []
-      pushHistorySnapshot()
+        // canvas.clear() (and loading a new background) fires fabric's own
+        // object-lifecycle events, which schedule a fresh debounced flush --
+        // cancel that too, since pushHistorySnapshot/resetAnnotation below
+        // already capture the correct final state directly. Left pending,
+        // it would later fire flushToStore() against a mid-reset canvas and
+        // silently resurrect a stale (or empty-but-not-actually-cleared)
+        // entry after resetAnnotation had already run.
+        clearTimeout(flushTimerRef.current)
+        clearTimeout(historyTimerRef.current)
 
-      useAnnotationStore.getState().resetAnnotation(path)
+        rotationRef.current = 0
+        setRotation(0)
+        zoomRef.current = 1
+        onZoomChange?.(100)
+        updateDisplaySize()
+
+        historyRef.current = []
+        pushHistorySnapshot()
+
+        useAnnotationStore.getState().resetAnnotation(path)
+      })
     },
     flush() {
       flushToStore()
