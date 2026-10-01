@@ -91,8 +91,12 @@ const AnnotationCanvas = forwardRef(function AnnotationCanvas(
   // ourselves, right before every canvas.clear(), doesn't depend on that
   // internal chain at all.
   const exitActiveTextEditing = (canvas) => {
-    const active = canvas.getActiveObject()
-    if (active?.isEditing) active.exitEditing()
+    // Checks every object, not just getActiveObject() -- the active-object
+    // reference and "which text box is actually mid-edit" can fall out of
+    // sync, and this must never miss one.
+    canvas.getObjects().forEach((obj) => {
+      if (obj.isEditing) obj.exitEditing()
+    })
   }
 
   const flushToStore = () => {
