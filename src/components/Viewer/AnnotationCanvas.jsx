@@ -60,6 +60,7 @@ const AnnotationCanvas = forwardRef(function AnnotationCanvas(
   const drawStateRef = useRef({ isDrawing: false, startPoint: null, activeShape: null })
   const panStateRef = useRef({ isPanning: false, startX: 0, startY: 0, startScrollLeft: 0, startScrollTop: 0 })
   const loadIdRef = useRef(0) // bumped on every image switch; detects a stale in-flight load (see below)
+  const loadQueueRef = useRef(Promise.resolve()) // serializes loads onto the shared canvas (see below)
 
   const [rotation, setRotation] = useState(0)
   const [ready, setReady] = useState(false)
@@ -434,16 +435,20 @@ const AnnotationCanvas = forwardRef(function AnnotationCanvas(
     // FabricImage.fromURL hadn't resolved yet used to leak that previous
     // image's shapes (and even its background photo) onto this canvas: both
     // calls mutate the shared fabric canvas as soon as they resolve, no
-    // matter how stale the request is by then -- a plain boolean "cancelled"
-    // flag only stopped OUR OWN later code (renderAll, history, etc.), not
-    // fabric's own mutation, which had already happened by the time we could
-    // check it. A monotonic id lets a stale resolution detect itself and
-    // undo what it just deposited instead of leaving it sitting on whatever
-    // image the user has since switched to.
+    // matter how stale the request is by then. Checking a "stale" flag
+    // AFTER the fact and reacting with canvas.clear() is not safe either --
+    // that clear can land AFTER the user has already started typing/drawing
+    // on the image that's actually current, wiping their in-progress work.
+    // So instead of reacting to staleness, this queues every load behind
+    // whichever one is currently running: only one load is ever touching
+    // the shared canvas at a time, and a load that goes stale while still
+    // waiting in line skips itself entirely rather than touching the canvas
+    // at all, leaving it to whichever load is actually current.
     const myLoadId = ++loadIdRef.current
     const isStale = () => loadIdRef.current !== myLoadId
 
     async function load() {
+      if (isStale()) return
       const canvas = fabricRef.current
       if (!canvas) return
 
@@ -470,20 +475,11 @@ const AnnotationCanvas = forwardRef(function AnnotationCanvas(
         const stored = useAnnotationStore.getState().getAnnotation(image.path)
         if (stored?.fabricJSON) {
           await canvas.loadFromJSON(stored.fabricJSON)
-          if (isStale()) {
-            // A newer load has already taken over this canvas -- clear the
-            // shapes/background this stale resolution just added instead of
-            // leaving another photo's saved annotation on top of it.
-            canvas.clear()
-            return
-          }
         } else {
           const img = await FabricImage.fromURL(image.url, { crossOrigin: 'anonymous' })
-          if (isStale()) return
           fitBackgroundImage(img, CANVAS_WIDTH, CANVAS_HEIGHT)
           canvas.backgroundImage = img
         }
-        if (isStale()) return
 
         canvas.renderAll()
 
@@ -496,11 +492,15 @@ const AnnotationCanvas = forwardRef(function AnnotationCanvas(
         const bg = canvas.backgroundImage
         if (bg) onMeta?.({ width: bg.width, height: bg.height })
       } catch (err) {
-        if (!isStale()) setLoadError(err.message || '이미지를 불러올 수 없습니다')
+        setLoadError(err.message || '이미지를 불러올 수 없습니다')
       }
     }
 
-    load()
+    // Chain onto the queue regardless of staleness-at-schedule-time -- the
+    // staleness check that actually matters happens once this load reaches
+    // the front of the queue (inside load(), above), right before it would
+    // touch the canvas.
+    loadQueueRef.current = loadQueueRef.current.then(load, load)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, image?.path])
 
