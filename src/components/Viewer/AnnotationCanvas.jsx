@@ -407,6 +407,23 @@ const AnnotationCanvas = forwardRef(function AnnotationCanvas(
       setZoom(zoomRef.current * direction)
     }
 
+    // By default fabric's IText treats plain Enter the same as Shift+Enter
+    // (both just insert a newline via the hidden textarea's native
+    // behavior -- fabric's own onKeyDown doesn't special-case Enter at all).
+    // Re-bound on every "entered editing" instead of once at creation, since
+    // re-editing an existing text object later creates a brand new hidden
+    // textarea each time.
+    const handleTextEditingEntered = ({ target }) => {
+      const textarea = target?.hiddenTextarea
+      if (!textarea) return
+      textarea.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault()
+          target.exitEditing()
+        }
+      })
+    }
+
     canvas.on('mouse:down', handleMouseDown)
     canvas.on('mouse:move', handleMouseMove)
     canvas.on('mouse:up', handleMouseUp)
@@ -414,6 +431,7 @@ const AnnotationCanvas = forwardRef(function AnnotationCanvas(
     canvas.on('object:modified', handleChange)
     canvas.on('object:removed', handleChange)
     canvas.on('text:changed', handleChange)
+    canvas.on('text:editing:entered', handleTextEditingEntered)
     window.addEventListener('keydown', handleKeyDown)
     containerRef.current?.addEventListener('wheel', handleWheel, { passive: false })
 
