@@ -32,6 +32,11 @@ export default function TopToolbar({ canvasApiRef }) {
         const entry = currentEntries[path]
         const dataUrl = await composeEntryToDataUrl(entry, path)
         await window.electronAPI.saveImage({ originalPath: path, dataUrl, mode })
+        // 원본 덮어쓰기일 때만 디스크 내용이 실제로 바뀌므로, 그때만 좌측 섬네일을
+        // 새로 저장된 내용으로 갱신한다 (복사본 저장은 원본 파일을 안 건드린다).
+        if (mode === 'overwrite') {
+          useExplorerStore.getState().refreshImageUrl(path)
+        }
         successCount += 1
       }
 

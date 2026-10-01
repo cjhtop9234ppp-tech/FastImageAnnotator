@@ -339,6 +339,16 @@ const AnnotationCanvas = forwardRef(function AnnotationCanvas(
         setZoom(1)
         return
       }
+      if (e.ctrlKey && (e.key === 'z' || e.key === 'Z')) {
+        const activeTag = document.activeElement?.tagName
+        if (activeTag === 'INPUT' || activeTag === 'TEXTAREA' || activeTag === 'SELECT') return
+        // 텍스트 편집 중이면 되돌리기는 텍스트 자체의 입력 취소로 맡겨둔다 (앱 되돌리기가
+        // 가로채면 방금 타이핑한 글자가 아니라 도형 작업 기록이 되돌아가 버린다).
+        if (canvas.getActiveObject()?.isEditing) return
+        e.preventDefault()
+        ref.current?.undo()
+        return
+      }
       if (e.key !== 'Delete') return
       const activeTag = document.activeElement?.tagName
       if (activeTag === 'INPUT' || activeTag === 'TEXTAREA' || activeTag === 'SELECT') return
