@@ -59,6 +59,7 @@ const AnnotationCanvas = forwardRef(function AnnotationCanvas(
 
   const drawStateRef = useRef({ isDrawing: false, startPoint: null, activeShape: null })
   const panStateRef = useRef({ isPanning: false, startX: 0, startY: 0, startScrollLeft: 0, startScrollTop: 0 })
+  const loadIdRef = useRef(0) // bumped on every image switch; detects a stale in-flight load (see below)
 
   const [rotation, setRotation] = useState(0)
   const [ready, setReady] = useState(false)
@@ -429,13 +430,32 @@ const AnnotationCanvas = forwardRef(function AnnotationCanvas(
   // Load a new image into the canvas whenever the selected image changes.
   useEffect(() => {
     if (!ready || !image) return
-    let cancelled = false
+    // Switching images fast enough that the PREVIOUS image's loadFromJSON /
+    // FabricImage.fromURL hadn't resolved yet used to leak that previous
+    // image's shapes (and even its background photo) onto this canvas: both
+    // calls mutate the shared fabric canvas as soon as they resolve, no
+    // matter how stale the request is by then -- a plain boolean "cancelled"
+    // flag only stopped OUR OWN later code (renderAll, history, etc.), not
+    // fabric's own mutation, which had already happened by the time we could
+    // check it. A monotonic id lets a stale resolution detect itself and
+    // undo what it just deposited instead of leaving it sitting on whatever
+    // image the user has since switched to.
+    const myLoadId = ++loadIdRef.current
+    const isStale = () => loadIdRef.current !== myLoadId
 
     async function load() {
       const canvas = fabricRef.current
       if (!canvas) return
 
       flushToStore()
+      // This explicit flush just captured the outgoing image's latest state,
+      // so any debounced flush/history-snapshot still pending from editing
+      // it is now redundant -- and dangerous if left to fire later, since by
+      // then it would read the NEW image's (possibly still-loading) canvas
+      // and attribute it to whichever path currentPathRef points to at that
+      // moment instead.
+      clearTimeout(flushTimerRef.current)
+      clearTimeout(historyTimerRef.current)
       canvas.clear()
       currentPathRef.current = image.path
       setLoadError(null)
@@ -450,13 +470,20 @@ const AnnotationCanvas = forwardRef(function AnnotationCanvas(
         const stored = useAnnotationStore.getState().getAnnotation(image.path)
         if (stored?.fabricJSON) {
           await canvas.loadFromJSON(stored.fabricJSON)
+          if (isStale()) {
+            // A newer load has already taken over this canvas -- clear the
+            // shapes/background this stale resolution just added instead of
+            // leaving another photo's saved annotation on top of it.
+            canvas.clear()
+            return
+          }
         } else {
           const img = await FabricImage.fromURL(image.url, { crossOrigin: 'anonymous' })
-          if (cancelled) return
+          if (isStale()) return
           fitBackgroundImage(img, CANVAS_WIDTH, CANVAS_HEIGHT)
           canvas.backgroundImage = img
         }
-        if (cancelled) return
+        if (isStale()) return
 
         canvas.renderAll()
 
@@ -469,14 +496,11 @@ const AnnotationCanvas = forwardRef(function AnnotationCanvas(
         const bg = canvas.backgroundImage
         if (bg) onMeta?.({ width: bg.width, height: bg.height })
       } catch (err) {
-        if (!cancelled) setLoadError(err.message || '이미지를 불러올 수 없습니다')
+        if (!isStale()) setLoadError(err.message || '이미지를 불러올 수 없습니다')
       }
     }
 
     load()
-    return () => {
-      cancelled = true
-    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, image?.path])
 
