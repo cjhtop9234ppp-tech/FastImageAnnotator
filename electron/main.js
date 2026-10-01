@@ -1,4 +1,4 @@
-import { app, BrowserWindow } from 'electron'
+import { app, BrowserWindow, Menu } from 'electron'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -31,6 +31,13 @@ const gotLock = app.requestSingleInstanceLock()
 if (!gotLock) {
   app.quit()
 }
+
+// 기본 메뉴바("File Edit View Window")를 그대로 두면 Alt 키 등으로 그 메뉴가
+// 포커스를 가져갈 수 있고, 메뉴 쪽 단축키(예: 기본 Edit 메뉴의 Ctrl+Z)가 우리
+// 앱의 키 입력보다 먼저 가로챌 수 있다 -- 이 창에서는 메뉴가 전혀 필요 없으므로
+// 아예 없앤다. (사용자가 캡처해서 보여준 "텍스트 입력이 안 먹는" 화면에 정확히
+// 이 메뉴바가 떠 있었다.)
+Menu.setApplicationMenu(null)
 
 registerMediaProtocol()
 
