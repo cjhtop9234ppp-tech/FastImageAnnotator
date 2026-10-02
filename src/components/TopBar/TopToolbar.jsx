@@ -90,13 +90,13 @@ export default function TopToolbar({ canvasApiRef }) {
     <header className="top-toolbar">
       <div className="top-toolbar__left">
         <div className="top-toolbar__title">FastImageAnnotator v{__APP_VERSION__}</div>
-        <button className="top-toolbar__save-btn" onClick={handleSaveCurrentClick} disabled={saving}>
-          {saving ? '저장 중…' : '💾 선택값만 저장'}
+        <button className="top-toolbar__save-btn" onClick={handleSaveCurrentClick} disabled={saving} title="Ctrl+S">
+          {saving ? '저장 중…' : '💾 선택값만 저장 (Ctrl+S)'}
         </button>
       </div>
       <div className="top-toolbar__right">
-        <button className="top-toolbar__save-btn" onClick={handleOpenInExplorer} disabled={!currentFolder}>
-          📂 결과 폴더 열기
+        <button className="top-toolbar__save-btn" onClick={handleOpenInExplorer} disabled={!currentFolder} title="Ctrl+O">
+          📂 결과 폴더 열기 (Ctrl+O)
         </button>
         <button className="top-toolbar__save-btn top-toolbar__save-btn--primary" onClick={handleSaveAllClick} disabled={saving}>
           {saving ? '저장 중…' : `💾 모두 저장${editedPaths.length ? ` (${editedPaths.length})` : ''}`}

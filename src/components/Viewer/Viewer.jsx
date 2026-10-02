@@ -4,8 +4,13 @@ import AnnotationToolbar from './AnnotationToolbar'
 import { formatBytes, formatDate } from '../../utils/format'
 import { useToolSettingsStore } from '../../store/toolSettingsStore'
 
-export default function Viewer({ image, canvasApiRef }) {
+export default function Viewer({ image, canvasApiRef, onToolSetterReady }) {
   const [tool, setTool] = useState('select')
+
+  // Pass tool setter to parent for shortcuts
+  useEffect(() => {
+    onToolSetterReady?.(setTool)
+  }, [])
   const color = useToolSettingsStore((s) => s.color)
   const setColor = useToolSettingsStore((s) => s.setColor)
   const strokeWidth = useToolSettingsStore((s) => s.strokeWidth)

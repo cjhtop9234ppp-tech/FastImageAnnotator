@@ -97,6 +97,10 @@ const AnnotationCanvas = forwardRef(function AnnotationCanvas(
     canvas.getObjects().forEach((obj) => {
       if (obj.isEditing) obj.exitEditing()
     })
+    // fabric's TextEditingManager also maintains its own state (targets array,
+    // current target) that doesn't always sync with individual objects'
+    // isEditing flags -- explicitly clear it too.
+    canvas.textEditingManager?.clear()
   }
 
   const flushToStore = () => {
@@ -420,6 +424,16 @@ const AnnotationCanvas = forwardRef(function AnnotationCanvas(
     const handleTextEditingEntered = ({ target }) => {
       const textarea = target?.hiddenTextarea
       if (!textarea) return
+      // 한글 입력을 기본으로 활성화: IME 자동 시작을 시뮬레이션
+      // (Electron/Windows에서 한글 입력기 활성화)
+      const event = new KeyboardEvent('keydown', {
+        key: 'Process',
+        code: 'MetaLeft',
+        keyCode: 229,
+        bubbles: true,
+      })
+      textarea.dispatchEvent(event)
+      textarea.focus()
       textarea.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' && !e.shiftKey) {
           e.preventDefault()

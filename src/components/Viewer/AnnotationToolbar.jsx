@@ -1,9 +1,9 @@
 const TOOLS = [
-  { id: 'select', label: '↖ 선택' },
-  { id: 'text', label: 'T 텍스트' },
-  { id: 'circle', label: '○ 원' },
-  { id: 'rect', label: '▭ 사각형' },
-  { id: 'arrow', label: '↗ 화살표' },
+  { id: 'select', label: '↖ 선택', shortcut: 'Ctrl+S' },
+  { id: 'text', label: 'T 텍스트', shortcut: 'Ctrl+T' },
+  { id: 'circle', label: '○ 원', shortcut: 'Ctrl+C' },
+  { id: 'rect', label: '▭ 사각형', shortcut: 'Ctrl+R' },
+  { id: 'arrow', label: '↗ 화살표', shortcut: 'Ctrl+A' },
 ]
 
 export default function AnnotationToolbar({
@@ -27,14 +27,17 @@ export default function AnnotationToolbar({
       <div className="annotation-toolbar__row">
         <div className="annotation-toolbar__group">
           {TOOLS.map((t) => (
-            <button
-              key={t.id}
-              className={`annotation-toolbar__btn${tool === t.id ? ' annotation-toolbar__btn--active' : ''}`}
-              onClick={() => onToolChange(t.id)}
-              disabled={disabled}
-            >
-              {t.label}
-            </button>
+            <div key={t.id} className="annotation-toolbar__tool-wrapper">
+              <button
+                className={`annotation-toolbar__btn${tool === t.id ? ' annotation-toolbar__btn--active' : ''}`}
+                onClick={() => onToolChange(t.id)}
+                disabled={disabled}
+                title={t.shortcut}
+              >
+                {t.label}
+              </button>
+              <div className="annotation-toolbar__shortcut-badge">{t.shortcut}</div>
+            </div>
           ))}
         </div>
 

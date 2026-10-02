@@ -446,6 +446,11 @@
   flex-wrap: wrap;
 }
 
+.annotation-toolbar__tool-wrapper {
+  position: relative;
+  display: inline-block;
+}
+
 .annotation-toolbar__btn {
   background: #fff;
   color: #1a1a1a;
@@ -470,6 +475,20 @@
 
 .annotation-toolbar__btn--danger:hover {
   background: #fbe4e4;
+}
+
+.annotation-toolbar__shortcut-badge {
+  position: absolute;
+  bottom: -14px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 9px;
+  background: #444;
+  color: #fff;
+  padding: 1px 4px;
+  border-radius: 2px;
+  white-space: nowrap;
+  pointer-events: none;
 }
 
 .annotation-toolbar__label {
