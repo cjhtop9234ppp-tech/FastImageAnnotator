@@ -34,6 +34,13 @@ export default function App() {
   // 단축키 처리: 포커스가 캔버스 영역에 있을 때만 활성화
   useEffect(() => {
     const handleGlobalKeyDown = (e) => {
+      // ESC: 선택 도구로 전환 (텍스트 입력 중에도 가능 - 편집 종료용)
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        setToolFromShortcut('select')
+        return
+      }
+
       // canvas 영역에 포커스가 없으면 무시 (텍스트 입력 중 등)
       if (document.activeElement?.tagName === 'TEXTAREA' || document.activeElement?.tagName === 'INPUT') {
         return
@@ -43,12 +50,18 @@ export default function App() {
         switch (e.key.toLowerCase()) {
           case 's':
             e.preventDefault()
-            document.querySelector('.top-toolbar__save-btn')?.click()
+            // 모두 저장 버튼 클릭
+            const saveAllBtn = Array.from(document.querySelectorAll('button')).find(b => b.textContent.includes('모두 저장'))
+            saveAllBtn?.click()
             break
           case 'o':
             e.preventDefault()
             const openFolderBtn = Array.from(document.querySelectorAll('button')).find(b => b.textContent.includes('결과 폴더'))
             openFolderBtn?.click()
+            break
+          case 'd':
+            e.preventDefault()
+            setToolFromShortcut('select')
             break
           case 't':
             e.preventDefault()

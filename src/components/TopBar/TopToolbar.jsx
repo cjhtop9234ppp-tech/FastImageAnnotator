@@ -98,8 +98,8 @@ export default function TopToolbar({ canvasApiRef }) {
         <button className="top-toolbar__save-btn" onClick={handleOpenInExplorer} disabled={!currentFolder} title="Ctrl+O">
           📂 결과 폴더 열기 (Ctrl+O)
         </button>
-        <button className="top-toolbar__save-btn top-toolbar__save-btn--primary" onClick={handleSaveAllClick} disabled={saving}>
-          {saving ? '저장 중…' : `💾 모두 저장${editedPaths.length ? ` (${editedPaths.length})` : ''}`}
+        <button className="top-toolbar__save-btn top-toolbar__save-btn--primary" onClick={handleSaveAllClick} disabled={saving} title="Ctrl+S">
+          {saving ? '저장 중…' : `💾 모두 저장 (Ctrl+S)${editedPaths.length ? ` - ${editedPaths.length}개` : ''}`}
         </button>
       </div>
 

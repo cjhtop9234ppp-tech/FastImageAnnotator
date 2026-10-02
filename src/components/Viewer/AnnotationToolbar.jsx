@@ -1,5 +1,5 @@
 const TOOLS = [
-  { id: 'select', label: '↖ 선택', shortcut: 'Ctrl+S' },
+  { id: 'select', label: '↖ 선택', shortcut: 'Ctrl+D' },
   { id: 'text', label: 'T 텍스트', shortcut: 'Ctrl+T' },
   { id: 'circle', label: '○ 원', shortcut: 'Ctrl+C' },
   { id: 'rect', label: '▭ 사각형', shortcut: 'Ctrl+R' },
