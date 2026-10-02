@@ -424,16 +424,23 @@ const AnnotationCanvas = forwardRef(function AnnotationCanvas(
     const handleTextEditingEntered = ({ target }) => {
       const textarea = target?.hiddenTextarea
       if (!textarea) return
-      // 한글 입력을 기본으로 활성화: IME 자동 시작을 시뮬레이션
-      // (Electron/Windows에서 한글 입력기 활성화)
-      const event = new KeyboardEvent('keydown', {
-        key: 'Process',
-        code: 'MetaLeft',
-        keyCode: 229,
-        bubbles: true,
+
+      // Windows IME 강제 리셋: blur/focus 순서로 IME가 현재 textarea를
+      // 정확히 추적하도록 강제하기 (이전 textarea의 IME 상태 해제)
+      textarea.blur()
+      // 마이크로태스크 큐 사용 - 다른 포커스 이벤트보다 우선해서 실행
+      Promise.resolve().then(() => {
+        textarea.focus()
+        // 한글 입력을 기본으로 활성화
+        const event = new KeyboardEvent('keydown', {
+          key: 'Process',
+          code: 'MetaLeft',
+          keyCode: 229,
+          bubbles: true,
+        })
+        textarea.dispatchEvent(event)
       })
-      textarea.dispatchEvent(event)
-      textarea.focus()
+
       textarea.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' && !e.shiftKey) {
           e.preventDefault()
